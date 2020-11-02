@@ -1,4 +1,12 @@
 #include "avl.h"
+#include <sys/time.h>
+
+double wtime()
+{
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return (double)t.tv_sec + (double)t.tv_usec * 1E-6;
+}
 
 int imax2(int a, int b)
 {
@@ -10,8 +18,10 @@ int imax2(int a, int b)
 
 int avltree_height(avltree* tree)
 {
-    int height = ((tree != NULL) ? tree->height : -1);
-    return height;
+    if (tree == NULL) {
+        return -1;
+    }
+    return tree->height;
 }
 
 avltree* avltree_right_rotate(avltree* tree)
@@ -78,13 +88,13 @@ avltree* avltree_lookup(avltree* tree, int key, int isdeleted)
     return tree;
 }
 
-avltree* avltree_create(int key, char* value)
+avltree* avltree_create(int key)
 {
     avltree* node;
     node = malloc(sizeof(*node));
     if (node != NULL) {
         node->key = key;
-        node->value = value;
+        node->prefix = trie_create();
         node->left = NULL;
         node->right = NULL;
         node->height = 0;
@@ -95,14 +105,13 @@ avltree* avltree_create(int key, char* value)
 
 int avltree_balance(avltree* tree)
 {
-    int balance = (avltree_height(tree->left) - avltree_height(tree->right));
-    return balance;
+    return (avltree_height(tree->left) - avltree_height(tree->right));
 }
 
-avltree* avltree_add(avltree* tree, int key, char* value)
+avltree* avltree_add(avltree* tree, int key)
 {
     if (tree == NULL) {
-        return avltree_create(key, value);
+        return avltree_create(key);
     }
     avltree* deleted_tree = avltree_lookup(tree, key, 1);
     if (deleted_tree != NULL) {
@@ -110,7 +119,7 @@ avltree* avltree_add(avltree* tree, int key, char* value)
         return deleted_tree;
     }
     if (key < tree->key) {
-        tree->left = avltree_add(tree->left, key, value);
+        tree->left = avltree_add(tree->left, key);
         if (avltree_height(tree->left) - avltree_height(tree->right) == 2) {
             if (key < tree->left->key) {
                 tree = avltree_right_rotate(tree);
@@ -119,7 +128,7 @@ avltree* avltree_add(avltree* tree, int key, char* value)
             }
         }
     } else if (key > tree->key) {
-        tree->right = avltree_add(tree->right, key, value);
+        tree->right = avltree_add(tree->right, key);
         if (avltree_height(tree->right) - avltree_height(tree->left) == 2) {
             if (key > tree->right->key) {
                 tree = avltree_left_rotate(tree);
@@ -143,13 +152,12 @@ void avltree_delete(avltree* tree, int key)
     tree->deleted = 1;
 }
 
-avltree* avltree_min(avltree* tree)
+/*avltree* avltree_min(avltree* tree)
 {
     if (tree->left != NULL) {
         return avltree_min(tree->left);
     }
     return tree;
-}
 
 avltree* avltree_max(avltree* tree)
 {
@@ -158,14 +166,29 @@ avltree* avltree_max(avltree* tree)
     }
     return tree;
 }
+}*/
+
+avltree* avltree_clear(avltree* tree, avltree* new_tree)
+{
+    if (tree->deleted == 0) {
+        new_tree = avltree_add(new_tree, tree->key);
+    }
+    if (tree->left != NULL) {
+        new_tree = avltree_clear(tree->left, new_tree);
+    }
+    if (tree->right != NULL) {
+        new_tree = avltree_clear(tree->right, new_tree);
+    }
+    return new_tree;
+}
 
 void avltree_print_dfs(avltree* tree, int level)
 {
     level--;
+    printf("%c",tree->key);
     if ((level >= 0) && (tree->left != NULL)) {
         avltree_print_dfs(tree->left, level);
     }
-    printf("%d %s\n", tree->key, tree->value);
     if ((level >= 0) && (tree->right != NULL)) {
         avltree_print_dfs(tree->right, level);
     }
